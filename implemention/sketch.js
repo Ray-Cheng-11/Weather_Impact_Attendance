@@ -8,6 +8,15 @@ const margin = {
     left: 100
 };
 const barWidth = 50;
+let hoveredBar = -1;
+let hoveredPoint = null;
+const INACTIVE_ALPHA = 100; // transparency for non-hovered elements
+
+let animationProgress = 0;
+let dataPointPulse = 0;
+const ANIMATION_DURATION = 60; // frames
+let barOpacities = [];
+let lineOpacities = { temperature: 255, precipitation: 255 };
 
 function preload() {
     table = loadTable("data/dataset.csv", "csv", "header");
@@ -22,6 +31,11 @@ function setup() {
     precipitation = table.getColumn("precipitation (mm)");
     present_rate = table.getColumn("Present_rate_mean");
     absent_rate = table.getColumn("Absent_rate_mean");
+    frameRate(30); // Add this to control update rate
+
+    // Initialize bar opacities
+    barOpacities = new Array(10).fill(255);
+    animationProgress = 0;
 }
 
 function centerCanvas(cnv) {
@@ -36,6 +50,12 @@ function windowResized() {
 
 function draw() {
     background(255);
+    
+    // Update animation states
+    if (animationProgress < ANIMATION_DURATION) {
+        animationProgress++;
+    }
+    dataPointPulse = (sin(frameCount * 0.1) + 1) * 2; // Creates a pulsing effect
     
     let monthlyTemps = calculateMonthlyAverages(temperature, true);
     let monthlyPrecip = calculateMonthlyAverages(precipitation, false);
@@ -64,25 +84,28 @@ function draw() {
     line(margin.left, margin.top, margin.left, height - margin.bottom);
     line(width - margin.right, margin.top, width - margin.right, height - margin.bottom);
     
-    for (let i = 0; i < schoolMonths.length; i++) {
-        let x = margin.left + i * xStep + (xStep - barWidth) / 2;
-        let baselineY = height - margin.bottom;
-
-        let total = presenceData[i] + absenceData[i];
-        let normalizedPresence = (presenceData[i] / total) * 100;
-        let normalizedAbsence = (absenceData[i] / total) * 100;
-        
-        fill(144, 238, 144);
-        noStroke();
-        let presenceHeight = map(normalizedPresence, 0, 100, 0, chartHeight);
-        rect(x, baselineY - presenceHeight, barWidth, presenceHeight);
-        
-        fill(255, 182, 193);
-        let absenceHeight = map(normalizedAbsence, 0, 100, 0, chartHeight);
-        rect(x, baselineY - presenceHeight - absenceHeight, barWidth, absenceHeight);
-    }
+    // Draw title and axis labels
+    textSize(22);
+    // textStyle(BOLD);
+    textAlign(CENTER);
+    text('The Impact of Temperature and Humidity on \n Student Attendance in New York City (2018-2019)', width/2.4, margin.top/2);
     
-    fill(0);
+    textSize(14);
+    text('Months of the School Year', width/2.4, height - margin.bottom/3);
+    
+    push();
+    translate(margin.left/2.3, height/2);
+    rotate(-PI/2);
+    text('Temperature (°F)', 0, 0);
+    pop();
+    
+    push();
+    translate(width - margin.right/1.25, height/2);
+    rotate(PI/2);
+    text('Precipitation (mm)', 0, 0);
+    pop();
+    
+    // Draw axis values
     textSize(12);
     textAlign(CENTER);
     for (let i = 0; i < schoolMonths.length; i++) {
@@ -104,56 +127,180 @@ function draw() {
         let precip = Math.floor(i * 20);
         text(precip, width - margin.right + 15, y + 5);
     }
+
+    drawBarsWithAnimation(schoolMonths, presenceData, absenceData, xStep, chartHeight);
+    drawTemperatureLineWithAnimation(tempData, xStep);
+    drawPrecipitationLineWithAnimation(precipData, xStep);
     
-    textSize(14);
-    textAlign(CENTER);
-    text('Months of the School Year', width/2.4, height - margin.bottom/3);
-    push();
-    translate(margin.left/2.3, height/2);
-    rotate(-PI/2);
-    text('Temperature (°F)', 0, 0);
-    pop();
-    push();
-    translate(width - margin.right/1.25, height/2);
-    rotate(PI/2);
-    text('Precipitation (mm)', 0, 0);
-    pop();
-    
-    textSize(19);
-    textStyle(BOLD);
-    text('The Impact of Temperature and Humidity on \n Student Attendance in New York City (2018-2019)', width/2.4, margin.top/2);
-    
-    stroke(255, 0, 0);
-    strokeWeight(2);
-    for (let i = 0; i < tempData.length - 1; i++) {
-        let x1 = margin.left + i * xStep + xStep/2;
-        let y1 = map(tempData[i], 0, 100, height - margin.bottom, margin.top);
-        let x2 = margin.left + (i + 1) * xStep + xStep/2;
-        let y2 = map(tempData[i + 1], 0, 100, height - margin.bottom, margin.top);
-        line(x1, y1, x2, y2);
-    }
-    fill(255, 0, 0);
+    // Update hover detection for temperature points
+    hoveredPoint = null;
     for (let i = 0; i < tempData.length; i++) {
         let x = margin.left + i * xStep + xStep/2;
-        let y = map(tempData[i], 0, 100, height - margin.bottom, margin.top);
-        ellipse(x, y, 8, 8);
+        let tempY = map(tempData[i], 0, 100, height - margin.bottom, margin.top);
+        
+        // Check temperature point hover
+        if (dist(mouseX, mouseY, x, tempY) < 10) {
+            hoveredPoint = {
+                type: 'temperature',
+                month: schoolMonths[i],
+                value: tempData[i].toFixed(1),
+                x: x,
+                y: tempY
+            };
+        }
+        
+        // Check precipitation point hover
+        let precipY = map(precipData[i], 0, 220, height - margin.bottom, margin.top);
+        if (dist(mouseX, mouseY, x, precipY) < 10) {
+            hoveredPoint = {
+                type: 'precipitation',
+                month: schoolMonths[i],
+                value: precipData[i].toFixed(1),
+                x: x,
+                y: precipY
+            };
+        }
+    }
+
+    // Draw hover information
+    if (hoveredBar !== -1) {
+        drawBarInfo(hoveredBar, schoolMonths, presenceData, absenceData, mouseX, mouseY);
     }
     
-    stroke(0, 0, 255);
+    if (hoveredPoint) {
+        drawPointInfo(hoveredPoint);
+    }
+
+    // Draw legend and other static elements
+    drawLegend();
+}
+
+function drawBarsWithAnimation(schoolMonths, presenceData, absenceData, xStep, chartHeight) {
+    hoveredBar = -1; // Reset hover state
+    
+    // First pass: find if any bar is being hovered
+    for (let i = 0; i < schoolMonths.length; i++) {
+        let x = margin.left + i * xStep + (xStep - barWidth) / 2;
+        let baselineY = height - margin.bottom;
+        let total = presenceData[i] + absenceData[i];
+        let normalizedPresence = (presenceData[i] / total) * 100;
+        let normalizedAbsence = (absenceData[i] / total) * 100;
+        
+        if (mouseX >= x && mouseX <= x + barWidth &&
+            mouseY >= baselineY - (normalizedPresence + normalizedAbsence) * chartHeight/100 &&
+            mouseY <= baselineY) {
+            hoveredBar = i;
+            break;
+        }
+    }
+    
+    // Second pass: draw bars with animation
+    for (let i = 0; i < schoolMonths.length; i++) {
+        let x = margin.left + i * xStep + (xStep - barWidth) / 2;
+        let baselineY = height - margin.bottom;
+        let total = presenceData[i] + absenceData[i];
+        let normalizedPresence = (presenceData[i] / total) * 100;
+        let normalizedAbsence = (absenceData[i] / total) * 100;
+        
+        // Calculate animation progress for this bar
+        let barProgress = min(1, (animationProgress - (i * 3)) / 20);
+        
+        // Animate opacity transitions
+        let targetOpacity = (hoveredBar === -1 || hoveredBar === i) ? 255 : INACTIVE_ALPHA;
+        barOpacities[i] = lerp(barOpacities[i], targetOpacity, 0.2);
+        
+        noStroke();
+        // Present bars with animation
+        fill(144, 238, 144, barOpacities[i]);
+        let presenceHeight = map(normalizedPresence * barProgress, 0, 100, 0, chartHeight);
+        rect(x, baselineY - presenceHeight, barWidth, presenceHeight);
+        
+        // Absent bars with animation
+        fill(255, 182, 193, barOpacities[i]);
+        let absenceHeight = map(normalizedAbsence * barProgress, 0, 100, 0, chartHeight);
+        rect(x, baselineY - presenceHeight - absenceHeight, barWidth, absenceHeight);
+    }
+}
+
+function drawTemperatureLineWithAnimation(tempData, xStep) {
+    let isHovering = hoveredPoint && hoveredPoint.type === 'temperature';
+    let targetOpacity = isHovering ? INACTIVE_ALPHA : 255;
+    lineOpacities.temperature = lerp(lineOpacities.temperature, targetOpacity, 0.2);
+    
+    let progress = min(1, animationProgress / ANIMATION_DURATION);
+    
+    stroke(255, 0, 0, lineOpacities.temperature);
+    strokeWeight(2);
+    
+    // Draw lines with progressive animation
+    for (let i = 0; i < tempData.length - 1; i++) {
+        let segmentProgress = min(1, (progress * ANIMATION_DURATION - (i * 5)) / 5);
+        if (segmentProgress > 0) {
+            let x1 = margin.left + i * xStep + xStep/2;
+            let y1 = map(tempData[i], 0, 100, height - margin.bottom, margin.top);
+            let x2 = margin.left + (i + 1) * xStep + xStep/2;
+            let y2 = map(tempData[i + 1], 0, 100, height - margin.bottom, margin.top);
+            
+            // Draw line segment with progress
+            let lineX2 = lerp(x1, x2, segmentProgress);
+            let lineY2 = lerp(y1, y2, segmentProgress);
+            line(x1, y1, lineX2, lineY2);
+        }
+    }
+    
+    // Draw points with progressive appearance
+    for (let i = 0; i < tempData.length; i++) {
+        let pointProgress = min(1, (progress * ANIMATION_DURATION - (i * 5)) / 5);
+        if (pointProgress > 0) {
+            let x = margin.left + i * xStep + xStep/2;
+            let y = map(tempData[i], 0, 100, height - margin.bottom, margin.top);
+            fill(255, 0, 0, lineOpacities.temperature * pointProgress);
+            let pointSize = hoveredPoint && hoveredPoint.type === 'temperature' ? 8 + dataPointPulse : 8;
+            ellipse(x, y, pointSize, pointSize);
+        }
+    }
+}
+
+function drawPrecipitationLineWithAnimation(precipData, xStep) {
+    let isHovering = hoveredPoint && hoveredPoint.type === 'precipitation';
+    let targetOpacity = isHovering ? INACTIVE_ALPHA : 255;
+    lineOpacities.precipitation = lerp(lineOpacities.precipitation, targetOpacity, 0.2);
+    
+    let progress = min(1, animationProgress / ANIMATION_DURATION);
+    
+    stroke(0, 0, 255, lineOpacities.precipitation);
+    strokeWeight(2);
+    
+    // Draw lines with progressive animation
     for (let i = 0; i < precipData.length - 1; i++) {
-        let x1 = margin.left + i * xStep + xStep/2;
-        let y1 = map(precipData[i], 0, 220, height - margin.bottom, margin.top);
-        let x2 = margin.left + (i + 1) * xStep + xStep/2;
-        let y2 = map(precipData[i + 1], 0, 220, height - margin.bottom, margin.top);
-        line(x1, y1, x2, y2);
-    }
-    fill(0, 0, 255);
-    for (let i = 0; i < precipData.length; i++) {
-        let x = margin.left + i * xStep + xStep/2;
-        let y = map(precipData[i], 0, 220, height - margin.bottom, margin.top);
-        ellipse(x, y, 8, 8);
+        let segmentProgress = min(1, (progress * ANIMATION_DURATION - (i * 5)) / 5);
+        if (segmentProgress > 0) {
+            let x1 = margin.left + i * xStep + xStep/2;
+            let y1 = map(precipData[i], 0, 220, height - margin.bottom, margin.top);
+            let x2 = margin.left + (i + 1) * xStep + xStep/2;
+            let y2 = map(precipData[i + 1], 0, 220, height - margin.bottom, margin.top);
+            
+            // Draw line segment with progress
+            let lineX2 = lerp(x1, x2, segmentProgress);
+            let lineY2 = lerp(y1, y2, segmentProgress);
+            line(x1, y1, lineX2, lineY2);
+        }
     }
     
+    // Draw points with progressive appearance
+    for (let i = 0; i < precipData.length; i++) {
+        let pointProgress = min(1, (progress * ANIMATION_DURATION - (i * 5)) / 5);
+        if (pointProgress > 0) {
+            let x = margin.left + i * xStep + xStep/2;
+            let y = map(precipData[i], 0, 220, height - margin.bottom, margin.top);
+            fill(0, 0, 255, lineOpacities.precipitation * pointProgress);
+            let pointSize = hoveredPoint && hoveredPoint.type === 'precipitation' ? 8 + dataPointPulse : 8;
+            ellipse(x, y, pointSize, pointSize);
+        }
+    }
+}
+
+function drawLegend() {
     let legendX = width - margin.right + 140;
     let legendY = margin.top + 30;
     textAlign(LEFT);
@@ -199,8 +346,38 @@ function draw() {
     rect(legendX, legendY - 8, 20, 16);
     fill(0);
     text('Absent', legendX + 30, legendY + 5);
+}
+
+function drawBarInfo(index, months, presenceData, absenceData, x, y) {
+    let total = presenceData[index] + absenceData[index];
+    let presentPercent = (presenceData[index] / total * 100).toFixed(1);
+    let absentPercent = (absenceData[index] / total * 100).toFixed(1);
     
-    noLoop();
+    fill(255);
+    stroke(0);
+    rect(x + 10, y - 70, 160, 60);
+    
+    noStroke();
+    fill(0);
+    textAlign(LEFT);
+    textSize(12);
+    text(`Month: ${months[index]}`, x + 20, y - 50);
+    text(`Present: ${presentPercent}%`, x + 20, y - 35);
+    text(`Absent: ${absentPercent}%`, x + 20, y - 20);
+}
+
+function drawPointInfo(point) {
+    fill(255);
+    stroke(0);
+    rect(point.x + 10, point.y - 40, 160, 40);
+    
+    noStroke();
+    fill(0);
+    textAlign(LEFT);
+    textSize(12);
+    text(`Month: ${point.month}`, point.x + 20, point.y - 25);
+    text(`${point.type}: ${point.value}${point.type === 'temperature' ? '°F' : 'mm'}`, 
+         point.x + 20, point.y - 10);
 }
 
 function calculateMonthlyAverages(data, isTemperature) {
