@@ -10,13 +10,15 @@ const margin = {
 const barWidth = 50;
 let hoveredBar = -1;
 let hoveredPoint = null;
-const INACTIVE_ALPHA = 100; // transparency for non-hovered elements
+const INACTIVE_ALPHA = 100;
 
 let animationProgress = 0;
 let dataPointPulse = 0;
-const ANIMATION_DURATION = 60; // frames
+const ANIMATION_DURATION = 60;
 let barOpacities = [];
 let lineOpacities = { temperature: 255, precipitation: 255 };
+
+const canvasTopMargin = 400;
 
 function preload() {
     table = loadTable("data/dataset.csv", "csv", "header");
@@ -31,16 +33,15 @@ function setup() {
     precipitation = table.getColumn("precipitation (mm)");
     present_rate = table.getColumn("Present_rate_mean");
     absent_rate = table.getColumn("Absent_rate_mean");
-    frameRate(30); // Add this to control update rate
+    frameRate(30);
 
-    // Initialize bar opacities
     barOpacities = new Array(10).fill(255);
     animationProgress = 0;
 }
 
 function centerCanvas(cnv) {
     let x = (windowWidth - canvas_width) / 2;
-    let y = (windowHeight - canvas_height) / 2;
+    let y = (windowHeight - canvas_height) / 2 + canvasTopMargin;
     cnv.position(x, y);
 }
 
@@ -55,7 +56,7 @@ function draw() {
     if (animationProgress < ANIMATION_DURATION) {
         animationProgress++;
     }
-    dataPointPulse = (sin(frameCount * 0.1) + 1) * 2; // Creates a pulsing effect
+    dataPointPulse = (sin(frameCount * 0.1) + 1) * 2;
     
     let monthlyTemps = calculateMonthlyAverages(temperature, true);
     let monthlyPrecip = calculateMonthlyAverages(precipitation, false);

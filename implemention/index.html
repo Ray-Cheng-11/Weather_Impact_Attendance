@@ -1,25 +1,86 @@
 <!DOCTYPE html>
 <html lang="">
-
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/png" href="assets/nyc.png">
-  <title>P5 SKETCH</title>
-  <style>
-    body {
-      padding: 0;
-      margin: 0;
-      background-color: #1b1b1b;
-    }
-  </style>
-  <script src="p5.js"></script>
-  <script src="sketch.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="assets/nyc.png">
+    <title>P5 SKETCH</title>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            background-color: #1b1b1b;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .title {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .questions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            max-width: 1200px;
+            margin-bottom: 40px;
+            padding: 20px;
+            background-color: #2d2d2d;
+            border-radius: 8px;
+        }
+        .question-block {
+            padding: 15px;
+            background-color: #363636;
+            border-radius: 6px;
+        }
+        .question-block h2 {
+            color: #fffb00;
+            margin-top: 0;
+        }
+        .question-block p {
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        main {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+    <script src="p5.js"></script>
+    <script src="sketch.js"></script>
 </head>
-
 <body>
-  <main>
-  </main>
+    <div class="container">
+        <div class="title">
+            <h1>The Impact of Temperature and Humidity on <br> Student Attendance in New York City (2018-2019)</h1>
+        </div>
+        
+        <div class="questions">
+            <div class="question-block">
+                <h2>WHAT</h2>
+                <p>A visualization showing the relationship between weather conditions and student attendance patterns in NYC schools during 2018-2019.</p>
+            </div>
+            <div class="question-block">
+                <h2>WHO</h2>
+                <p>This visualization is aimed at university students in New York City who are expected to attend classes throughout different months (September to June) and across varying weather conditions (temperatures and precipitation).</p>
+            </div>
+            <div class="question-block">
+                <h2>WHY</h2>
+                <p>The visualization empowers students to make informed commute decisions, and advocate for policies like remote learning. It also allows them to compare their attendance with trends, so they can make better decisions about when to attend class or adjust their schedules.</p>
+            </div>
+            <div class="question-block">
+                <h2>HOW</h2>
+                <p>Students can view attendance rates through stacked bars, track temperature trends with the red line, and monitor precipitation levels with the blue line. The interactive hover feature lets them explore specific months to see how weather impacts attendance at different times.</p>
+            </div>
+        </div>
+        
+        <main>
+        </main>
+    </div>
 </body>
-
 </html>
